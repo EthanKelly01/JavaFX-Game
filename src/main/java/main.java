@@ -1,3 +1,11 @@
+//Author: E. Kelly
+/* Proj Description:
+- an evolving project using JavaFX, networking, and multithreading
+- pong, but using multiple windows. You drag a window around instead of controlling a paddle
+- pong, with windows, hence PongWin(dows)
+ */
+//All art credit to Alex Sawatzky
+
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -9,10 +17,12 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.ToolBar;
+import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -31,122 +41,120 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.xml.sax.SAXException;
 import java.lang.Math;
+import java.util.function.UnaryOperator;
+import java.util.regex.Pattern;
 
 public class main extends Application {
+    private Stage primStage = null;
+    public Stage getStage() { return primStage; }
+
     @Override
     public void start(Stage primaryStage) throws ParserConfigurationException, IOException, SAXException {
-        primaryStage.setTitle("JavaFX Game");
+        primStage = primaryStage;
 
         //create scenes
         VBox home = new VBox(); //main menu
-        AnchorPane animPage = new AnchorPane(); //game page
-        VBox aboutPage = new VBox(); //about page
+        VBox clientMenu = new VBox(5);
 
-        AnchorPane paddlePage = new AnchorPane();
-        Circle paddlePong = new Circle(25, Color.valueOf("#02219e"));
-        paddlePage.getChildren().addAll(new Rectangle(70, 10,10, 180), paddlePong);
-        Stage paddleStage = new Stage();
-        paddleStage.setScene(new Scene(paddlePage, 100, 200));
-        paddleStage.initModality(Modality.APPLICATION_MODAL);
-        paddleStage.setTitle("Paddle");
-        paddleStage.initStyle(StageStyle.UTILITY);
-        paddleStage.setResizable(false);
-        Rectangle2D screenBounds = Screen.getPrimary().getBounds();
-        paddleStage.setX(screenBounds.getWidth()*0.75);
-        paddleStage.setY(primaryStage.getY());
+        Rectangle2D screenBounds = Screen.getPrimary().getBounds(); //TODO: better positioning system
+
+        //String address = "localhost"; //default vars
+        String address = "192.168.2.30";
+        int port = 6666;
 
         //main menu
         {
-            Button animBtn = new Button("Animation");
-            animBtn.setPrefSize(200, 10);
-            animBtn.setOnAction(e -> {
-                primaryStage.getScene().setRoot(animPage);
-                paddleStage.show();
+            Button hostBtn = new Button("Host Game");
+            Button joinBtn = new Button("Join Game");
+            hostBtn.setPrefSize(200, 10);
+            joinBtn.setPrefSize(200, 10);
+
+            hostBtn.setOnAction(e -> {
+                //do something
+                //primaryStage.getScene().setRoot(gamePage);
+                //pPaddleStage.show();
             });
-            Button aboutBtn = new Button("About");
-            aboutBtn.setPrefSize(200, 10);
-            aboutBtn.setOnAction(e -> primaryStage.getScene().setRoot(aboutPage));
+
+            joinBtn.setOnAction(e -> {
+                //do something
+                primaryStage.getScene().setRoot(clientMenu);
+            });
 
             home.setAlignment(Pos.CENTER);
             home.setSpacing(10);
-            home.getChildren().addAll(animBtn, aboutBtn);
-            home.setPadding(new Insets(25, 25, 25, 25));
+            home.setPadding(new Insets(20));
+            home.getChildren().addAll(hostBtn, joinBtn);
         }
 
-        //Animation scene
+        //Client menu
         {
-            Circle circle = new Circle(25, Color.valueOf("#02219e"));
-            circle.setLayoutX(100); //TODO: set to mid of window
-            circle.setLayoutY(100);
-            animPage.getChildren().add(circle);
-            //TODO: add paddles
+            clientMenu.setAlignment(Pos.CENTER);
+            clientMenu.setPadding(new Insets(20));
 
-            //I made the old timey screensaver thing. Still moves across the screen every 2sec and adapts to changing screensize
-            Timeline timeline = new Timeline(new KeyFrame(Duration.millis(10), new EventHandler<ActionEvent>() {
-                double moveX = 1, moveY = 1;
-                double windowX = paddleStage.getX(), windowY = paddleStage.getY();
-                Rectangle2D screenBounds = Screen.getPrimary().getBounds(); //TODO: add multiscreen drifting
-                Bounds paddleBounds = paddlePage.getChildren().get(0).getBoundsInLocal();
-                @Override public void handle(ActionEvent event) {
-                    Bounds bounds = primaryStage.getScene().getRoot().getBoundsInLocal();
-                    if (moveX > 5) moveX = 5;
-                    if (moveY > 5) moveY = 5;
-                    circle.setLayoutX(circle.getLayoutX() + moveX);
-                    circle.setLayoutY(circle.getLayoutY() + moveY);
-
-                    paddlePong.setLayoutX(primaryStage.getX() + circle.getLayoutX() - paddleStage.getX());
-                    paddlePong.setLayoutY(primaryStage.getY() + circle.getLayoutY() - paddleStage.getY());
-
-                    //TODO: detect kicks
-                    double winSpeedX = paddleStage.getX() - windowX, winSpeedY = paddleStage.getY() - windowY;
-
-                    boolean alignY = paddlePong.getLayoutY() >= paddleBounds.getMinY() && paddlePong.getLayoutY() <= paddleBounds.getMaxY();
-                    if (paddlePong.getLayoutX() >= paddleBounds.getMinX() - circle.getRadius() && alignY){ //hit from left
-                        moveX = - (Math.abs(moveX - winSpeedX/2));
-                    } else if (paddlePong.getLayoutX() <= paddleBounds.getMaxX() + circle.getRadius() && alignY){ //hit from right
-                        moveX = Math.abs(moveX + winSpeedX/2);
-                    }
-
-                    if (circle.getLayoutX() <= (bounds.getMinX() + circle.getRadius())) moveX *= -1;
-
-                    //if (circle.getLayoutY() >= (screenBounds.getMaxY() - circle.getRadius()) || circle.getLayoutY() <= (screenBounds.getMinY() + circle.getRadius())) moveY *= -1;
-                    if (circle.getLayoutY() >= (bounds.getMaxY() - circle.getRadius()) || circle.getLayoutY() <= (bounds.getMinY() + circle.getRadius())) moveY *= -1;
-                    if (paddlePong.getLayoutX() > screenBounds.getMaxX()) {
-                        circle.setLayoutX(100); //loss, restart
-                        circle.setLayoutY(100);
-                        moveX = moveY = 1;
-                    }
-
-                    windowX = paddleStage.getX();
-                    windowY = paddleStage.getY();
+            TextField portField = new TextField(Integer.toString(port));
+            portField.setMaxWidth(50);
+            UnaryOperator<TextFormatter.Change> modifyChange = c -> {
+                if (c.isContentChange() && (c.getControlNewText().length() > 5 || !Pattern.matches("^[0-9]*$", c.getControlNewText()))) {
+                    c.setText(c.getControlText());
+                    c.setRange(0, c.getControlText().length());
                 }
-            }));
-            timeline.setCycleCount(Animation.INDEFINITE);
-            timeline.play();
+                return c;
+            };
+            portField.setTextFormatter(new TextFormatter<>(modifyChange));
+
+            GridPane temp = new GridPane();
+            temp.setAlignment(Pos.CENTER);
+            temp.setHgap(5);
+            temp.add(new Label("Port:"), 0, 1);
+            temp.add(portField, 1, 1);
+
+            TextField ipField = new TextField((address));
+
+            GridPane temp2 = new GridPane();
+            temp2.setAlignment(Pos.CENTER);
+            temp2.setHgap(5);
+            temp2.add(new Label("IP Address:"), 0, 1);
+            temp2.add(ipField, 1, 1);
+
+            TextField usernameField = new TextField("anon");
+
+            GridPane temp3 = new GridPane();
+            temp3.setAlignment(Pos.CENTER);
+            temp3.setHgap(5);
+            temp3.add(new Label("Username:"), 0, 1);
+            temp3.add(usernameField, 1, 1);
+
+            Button ConnectBtn = new Button("Connect");
+            portField.setOnKeyPressed(keyEvent -> {if (keyEvent.getCode() == KeyCode.ENTER) ConnectBtn.fire();});
+
+            clientMenu.getChildren().addAll(temp2, temp, temp3, ConnectBtn);
         }
 
-        //About scene
+        //set stage
         {
-            Button homeBtn = new Button("Home");
-            homeBtn.setCancelButton(true);
-            homeBtn.setPrefSize(50, 10);
-            homeBtn.setOnAction(e -> primaryStage.getScene().setRoot(home));
-            aboutPage.getChildren().add(new ToolBar(homeBtn, new Text("You can also hit escape to go back!")));
+            primaryStage.setTitle("PongWin");
+            primaryStage.getIcons().add(new Image("icon.png"));
+            //primaryStage.getIcons().add(new Image("icon_bg.png"));
 
-            Document document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(new File("src/main/resources/data.xml"));
-            document.getDocumentElement().normalize(); //these open the xml for reading
-            Label label = new Label(document.getElementsByTagName("name").item(0).getTextContent()), label1 = new Label(document.getElementsByTagName("email").item(0).getTextContent()),
-                    label2 = new Label(((Element) document.getElementsByTagName("student").item(0)).getAttribute("id")),
-                    label3 = new Label(document.getElementsByTagName("software-description").item(0).getTextContent());
-            aboutPage.getChildren().addAll(label, label1, label2, label3);
+            primaryStage.setScene(new Scene(home, 450, 300)); //v Center the window v
+            primaryStage.setX(((screenBounds.getMaxX() - screenBounds.getMinX()) / 2) - (primaryStage.getScene().getWidth() / 2));
+            primaryStage.setY((screenBounds.getMaxY() - screenBounds.getMinY()) / 2 - (primaryStage.getScene().getHeight() / 2));
+
+            //timeline
+            primaryStage.show();
+            //start intro anim
         }
-
-        //start stage
-        primaryStage.setScene(new Scene(home, 300, 250));
-        primaryStage.show();
     }
 
     public static void main(String[] args){
         launch();
     }
 }
+
+/*Timeline timeline = new Timeline(new KeyFrame(Duration.millis(10), new EventHandler<ActionEvent>() {
+    @Override public void handle(ActionEvent event) {
+
+    }
+}));
+timeline.setCycleCount(Animation.INDEFINITE);
+timeline.play();*/
