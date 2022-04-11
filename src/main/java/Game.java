@@ -56,10 +56,10 @@ public class Game {
         Rectangle2D screenBounds = Screen.getPrimary().getBounds(); //TODO: add multiscreen drifting
 
         //main stage
-        Circle circle = new Circle(25, Color.valueOf("#02219e"));
+        Circle ball = new Circle(25, Color.valueOf("#02219e"));
         {
             gameScene.setStyle("-fx-background-color : #2e3034;");
-            gameScene.getChildren().addAll(circle);
+            gameScene.getChildren().addAll(ball);
         }
 
         //Player paddle stage
@@ -115,50 +115,69 @@ public class Game {
 
             //loop prep
             long last = System.currentTimeMillis();
-            double xPos = (screenBounds.getMaxX() - screenBounds.getMinX()) / 2, yPos = (screenBounds.getMaxY() - screenBounds.getMinY()) / 2;
-            double moveX = 1, moveY = 1;
+            double xPos = (screenBounds.getMaxX() - screenBounds.getMinX()) / 2, yPos = (screenBounds.getMaxY() - screenBounds.getMinY()) / 2,
+                    moveX = 1, moveY = 1, lastBallX = xPos, lastBallY = yPos,
+                    rad = ball.getRadius();
+
+            double paddlePosX = pPaddleStage.getX(), paddlePosY = pPaddleStage.getY(),
+                    lastXPos = paddlePosX, lastYPos = paddlePosY;
+            boolean alignedX = false, alignedY = false;
+
 
             //game loop
             while (run) {
                 long time = System.currentTimeMillis();
 
-                //get info
-                {
-
-                }
-
-                //check collisions
-                {
-                    double rad = circle.getRadius();
-                    if (xPos <= primaryStage.getX() + rad) moveX = abs(moveX);
-                    else if (xPos >= primaryStage.getX() + primaryStage.getScene().getWidth() - rad) moveX = -abs(moveX);
-                    if (yPos <= primaryStage.getY() + rad) moveY = abs(moveY);
-                    else if (yPos >= primaryStage.getY() + primaryStage.getScene().getHeight() - rad) moveY = -abs(moveY);
-                }
-
                 //update positions
                 {
+                    if (moveX > 10) moveX = 10;
+                    else if (moveX < -10) moveX = -10;
+
+
                     xPos += (moveX * (time - last) / 10);
                     yPos += (moveY * (time - last) / 10);
 
-                    circle.setLayoutX(xPos - primaryStage.getX());
-                    circle.setLayoutY(yPos - primaryStage.getY());
+                    ball.setLayoutX(xPos - primaryStage.getX());
+                    ball.setLayoutY(yPos - primaryStage.getY());
 
                     paddlePong.setLayoutX(xPos - pPaddleStage.getX());
                     paddlePong.setLayoutY(yPos - pPaddleStage.getY());
                 }
 
-                /*Bounds bounds = primaryStage.getScene().getRoot().getBoundsInLocal();
-                double winSpeedX = pPaddleStage.getX() - windowX, winSpeedY = pPaddleStage.getY() - windowY;
-                boolean alignY = paddlePong.getLayoutY() >= paddleBounds.getMinY() && paddlePong.getLayoutY() <= paddleBounds.getMaxY();
+                //get info
+                {
+                    paddlePosX = pPaddleStage.getX();
+                    paddlePosY = pPaddleStage.getY();
 
-                if (paddlePong.getLayoutX() >= paddleBounds.getMinX() - circle.getRadius() && alignY) { //hit from left
-                    moveX = -(Math.abs(moveX - winSpeedX / 2));
-                } else if (paddlePong.getLayoutX() <= paddleBounds.getMaxX() + circle.getRadius() && alignY) { //hit from right
-                    moveX = Math.abs(moveX + winSpeedX / 2);
-                }*/
+                    alignedX = (xPos - rad < paddlePosX + pPaddleStage.getScene().getWidth())
+                            && (xPos + rad > paddlePosX + 55); //TODO: find a way to get paddle location
+                    alignedY = (yPos - rad < paddlePosY + pPaddleStage.getScene().getHeight())
+                            && (yPos + rad > paddlePosY);
+                }
 
-                last = time;
+                //check collisions
+                {
+                    if (xPos <= primaryStage.getX() + rad) moveX = abs(moveX);
+                    else if (xPos >= primaryStage.getX() + primaryStage.getScene().getWidth() - rad) moveX = -abs(moveX);
+                    if (yPos <= primaryStage.getY() + rad) moveY = abs(moveY);
+                    else if (yPos >= primaryStage.getY() + primaryStage.getScene().getHeight() - rad) moveY = -abs(moveY);
+
+                    if (alignedX && alignedY) { //TODO: fix the speed pass-through thing
+                        moveX += abs((paddlePosX - lastXPos) / 5);
+                        if (lastBallX >= lastXPos + (pPaddle.getWidth() / 2)) moveX = abs(moveX);
+                        else moveX = -abs(moveX);
+                    }
+                }
+
+                //update info
+                {
+                    last = time;
+                    lastXPos = paddlePosX;
+                    lastYPos = paddlePosY;
+                    lastBallX = xPos;
+                    lastBallY = yPos;
+                }
+
                 try {TimeUnit.MILLISECONDS.sleep(10);} catch (InterruptedException ignored) {}
             }
         });
