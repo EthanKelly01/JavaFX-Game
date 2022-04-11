@@ -8,6 +8,7 @@
 
 import javafx.animation.Animation;
 import javafx.animation.KeyFrame;
+import javafx.animation.ScaleTransition;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.event.ActionEvent;
@@ -152,7 +153,7 @@ public class main extends Application {
 
             //timeline
             primaryStage.show();
-            //start intro anim
+            //TODO: intro anim
 
             primaryStage.setOnCloseRequest(event -> {
                 if (game != null) game.end();
