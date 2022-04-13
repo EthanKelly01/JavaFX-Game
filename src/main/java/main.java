@@ -6,14 +6,7 @@
  */
 //All art credit to Alex Sawatzky
 
-import javafx.animation.Animation;
-import javafx.animation.KeyFrame;
-import javafx.animation.ScaleTransition;
-import javafx.animation.Timeline;
 import javafx.application.Application;
-import javafx.event.ActionEvent;
-import javafx.event.EventHandler;
-import javafx.geometry.Bounds;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.geometry.Rectangle2D;
@@ -23,23 +16,8 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
-import javafx.scene.shape.Rectangle;
-import javafx.scene.text.Text;
-import javafx.stage.Modality;
 import javafx.stage.Screen;
 import javafx.stage.Stage;
-import javafx.stage.StageStyle;
-import javafx.util.Duration;
-import java.io.File;
-import java.io.IOException;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import org.w3c.dom.Document;
-import org.w3c.dom.Element;
-import org.xml.sax.SAXException;
-import java.lang.Math;
 import java.util.function.UnaryOperator;
 import java.util.regex.Pattern;
 
@@ -49,12 +27,13 @@ public class main extends Application {
     Game game;
 
     @Override
-    public void start(Stage primaryStage) throws ParserConfigurationException, IOException, SAXException {
+    public void start(Stage primaryStage) {
         primStage = primaryStage;
 
         //create scenes
         VBox home = new VBox(); //main menu
         VBox clientMenu = new VBox(5);
+        VBox hostMenu = new VBox(5);
 
         Rectangle2D screenBounds = Screen.getPrimary().getBounds(); //TODO: better positioning system
 
@@ -70,22 +49,59 @@ public class main extends Application {
             Button joinBtn = new Button("Join Game");
             hostBtn.setPrefSize(200, 10);
             joinBtn.setPrefSize(200, 10);
-
-            hostBtn.setOnAction(e -> {
-                //do something
-                //primaryStage.getScene().setRoot(gamePage);
-                //pPaddleStage.show();
-            });
-
-            joinBtn.setOnAction(e -> {
-                //do something
-                primaryStage.getScene().setRoot(clientMenu);
-            });
+            hostBtn.setStyle("-fx-background-color: #f9e7bf;");
+            joinBtn.setStyle("-fx-background-color: #f9e7bf;");
+            hostBtn.setOnAction(e -> primaryStage.getScene().setRoot(hostMenu));
+            joinBtn.setOnAction(e -> primaryStage.getScene().setRoot(clientMenu));
 
             home.setAlignment(Pos.CENTER);
             home.setSpacing(10);
             home.setPadding(new Insets(20));
             home.getChildren().addAll(new ImageView(new Image("logo.png")), hostBtn, joinBtn);
+        }
+
+        //host menu
+        {
+            hostMenu.setStyle("-fx-background-color : #f9e7bf;");
+
+            hostMenu.setAlignment(Pos.CENTER);
+            hostMenu.setPadding(new Insets(20));
+
+            TextField portField = new TextField(Integer.toString(port));
+            portField.setMaxWidth(50);
+            UnaryOperator<TextFormatter.Change> modifyChange = c -> {
+                if (c.isContentChange() && (c.getControlNewText().length() > 5 || !Pattern.matches("^[0-9]*$", c.getControlNewText()))) {
+                    c.setText(c.getControlText());
+                    c.setRange(0, c.getControlText().length());
+                }
+                return c;
+            };
+            portField.setTextFormatter(new TextFormatter<>(modifyChange));
+
+            GridPane portRow = new GridPane();
+            portRow.setAlignment(Pos.CENTER);
+            portRow.setHgap(5);
+            portRow.add(new Label("Port:"), 0, 1);
+            portRow.add(portField, 1, 1);
+
+            TextField usernameField = new TextField("anon");
+
+            GridPane nameRow = new GridPane();
+            nameRow.setAlignment(Pos.CENTER);
+            nameRow.setHgap(5);
+            nameRow.add(new Label("Username:"), 0, 1);
+            nameRow.add(usernameField, 1, 1);
+
+            Button connectBtn = new Button("Connect");
+            portField.setOnKeyPressed(keyEvent -> {if (keyEvent.getCode() == KeyCode.ENTER) connectBtn.fire();});
+
+            connectBtn.setOnAction(e -> {
+                game = new Game(this, port);
+                if (game.getConnection()) game.run();
+                else System.out.println("Something went wrong creating a server.");
+            });
+
+            hostMenu.getChildren().addAll(nameRow, portRow, connectBtn);
         }
 
         //Client menu
@@ -142,8 +158,8 @@ public class main extends Application {
         //set stage
         {
             primaryStage.setTitle("PongWin");
+            //primaryStage.getIcons().addAll(new Image("icon.png"), new Image("icon_bg.png"), new Image("icon_dark.png"));
             primaryStage.getIcons().add(new Image("icon.png"));
-            //primaryStage.getIcons().add(new Image("icon_bg.png"));
 
             primaryStage.setResizable(false);
 

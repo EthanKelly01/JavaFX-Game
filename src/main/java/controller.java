@@ -7,21 +7,23 @@ import java.util.HashMap;
 
 public class Controller implements Runnable {
     private ServerSocket srvr = null;
-    private main main = null;
+    private static Game game = null;
     private final ArrayList<Player> threadpool = new ArrayList<>();
     private volatile boolean run = true;
+    private Player opponent;
 
     private final static HashMap<String, String> config = new HashMap<>();
 
-    public Controller(int port, main main) {
+    public Controller(int port, Game game) {
         config.put("Delimiter", "`");
         config.put("Update", "update");
         config.put("Disconnect", "end");
-        config.put("Formatting", "x,y");
+        config.put("FormatOut", "x,y");
+        config.put("FormatIn", "x1,y1:x2,y2");
 
         try {
             srvr = new ServerSocket(port);
-            this.main = main;
+            this.game = game;
         } catch (IOException ignored) {}
     }
 
@@ -29,6 +31,7 @@ public class Controller implements Runnable {
         if (srvr == null) return;
         while (run) try {
             Player temp = new Player(srvr.accept(), this);
+            if (opponent == null) opponent = temp;
             temp.start();
             threadpool.add(temp);
         } catch (IOException ignored) {}
@@ -42,7 +45,15 @@ public class Controller implements Runnable {
         } catch (IOException ignored) {}
     }
 
-    private void removeThread(Player player) { threadpool.remove(player); }
+    private void removeThread(Player player) {
+        threadpool.remove(player);
+        if (player.equals(opponent)) {
+            if (threadpool.size() > 0) opponent = threadpool.get(0);
+            else opponent = null;
+        }
+    }
+
+    public boolean getOpponent() { return (opponent != null); }
 
     private static class Player extends Thread {
         private final Socket skt;
@@ -71,8 +82,9 @@ public class Controller implements Runnable {
                 while (!this.isInterrupted() && (input = in.readLine()) != null) {
                     if (input.equals(config.get("Disconnect"))) break; //let client disconnect
                     else if (input.equals(config.get("Update"))) out.println(getConfig());
-                    else {
-                        //player update loop
+                    else if (this.equals(srvr.opponent)) { //player update loop
+                        String[] nums = input.split(",");
+                        game.updateHost(Double.parseDouble(nums[0]), Double.parseDouble(nums[1]));
                     }
                 }
                 in.close();

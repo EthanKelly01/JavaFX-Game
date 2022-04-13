@@ -1,4 +1,3 @@
-import javafx.event.EventHandler;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -12,9 +11,7 @@ import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.stage.*;
-
 import java.util.concurrent.TimeUnit;
-
 import static java.lang.Math.abs;
 
 public class Game {
@@ -23,23 +20,26 @@ public class Game {
     Controller srvr = null;
     Client client = null;
     private volatile boolean run = true;
+    private volatile double xPos, yPos, oppX, oppY, pX, pY;
 
-    Stage primaryStage;
-    Stage pPaddleStage = new Stage();
-    Stage oPaddleStage = new Stage();
-    private final EventHandler<WindowEvent> closeEventHandler = event -> {
-        oPaddleStage.close();
-        primaryStage.close();
-        this.end();
-    };
+    public void updateClient(double x1, double y1, double x2, double y2) {
+        xPos = x1;
+        yPos = y1;
+        pX = x2;
+        pY = y2;
+    }
 
+    public void updateHost(double x, double y) {
+        oppX = x;
+        oppY = y;
+    }
+
+    //controls window drag
     private double gapX = 0, gapY = 0;
-
     private void calculateGap(MouseEvent event, Stage stage) {
         gapX = event.getScreenX() - stage.getX();
         gapY = event.getScreenY() - stage.getY();
     }
-
     private void dragStage(MouseEvent event, Stage stage) {
         stage.setX(event.getScreenX() - gapX);
         stage.setY(event.getScreenY() - gapY);
@@ -48,19 +48,23 @@ public class Game {
     public Game(main main, int port, String address) {
         this.main = main;
         host = false;
+        client = new Client(this, address, port);
         //connect to server
     }
 
     public Game(main main, int port) {
         this.main = main;
         host = true;
+        new Thread(srvr = new Controller(port, this)).start();
         //start server
     }
 
     public boolean getConnection() { return srvr != null || client != null; }
 
     public void run() {
-        primaryStage = main.getStage();
+        Stage primaryStage = main.getStage();
+        Stage pPaddleStage = new Stage();
+        Stage oPaddleStage = new Stage();
 
         AnchorPane gameScene = new AnchorPane();
         BorderPane pPaddle = new BorderPane();
@@ -92,6 +96,7 @@ public class Game {
                 pPaddleStage.setWidth(100);
 
                 pPaddleStage.setOnCloseRequest(e -> {
+                    if (srvr != null) srvr.end();
                     oPaddleStage.close();
                     primaryStage.close();
                     this.end();
@@ -100,6 +105,7 @@ public class Game {
 
             //Scene settings
             {
+                //children
                 ToolBar winBar = new ToolBar();
 
                 Button closeBtn = new Button("X");
@@ -113,6 +119,7 @@ public class Game {
                 Rectangle paddle = new Rectangle(55, 0, 30, 206);
                 paddle.setFill(new ImagePattern(new Image("paddle.png")));
 
+                //scene
                 pPaddle.setOnMouseDragged(e -> this.dragStage(e, pPaddleStage));
                 pPaddle.setOnMouseMoved(e -> this.calculateGap(e, pPaddleStage));
 
@@ -171,7 +178,9 @@ public class Game {
         new Thread(() -> {
             try {anim.join();} catch (InterruptedException ignored) {}
 
-            double xPos = (screenBounds.getMaxX() - screenBounds.getMinX()) / 2, yPos = (screenBounds.getMaxY() - screenBounds.getMinY()) / 2, moveX = 1, moveY = 1;
+            xPos = (screenBounds.getMaxX() - screenBounds.getMinX()) / 2;
+            yPos = (screenBounds.getMaxY() - screenBounds.getMinY()) / 2;
+            double moveX = 1, moveY = 1;
             final double rad = ball.getRadius();
             long last = System.currentTimeMillis();
             double lastPX = pPaddleStage.getX(), lastOX = oPaddleStage.getX(), lastBallX = xPos;
@@ -179,54 +188,66 @@ public class Game {
             while (run) {
                 long time = System.currentTimeMillis();
 
-                //update positions
-                {
-                    xPos += (moveX * (time - last) / 10);
-                    yPos += (moveY * (time - last) / 10);
-
-                    ball.setLayoutX(xPos - primaryStage.getX());
-                    ball.setLayoutY(yPos - primaryStage.getY());
-
-                    paddlePong.setLayoutX(xPos - pPaddleStage.getX());
-                    paddlePong.setLayoutY(yPos - pPaddleStage.getY());
-
-                    opponentPong.setLayoutX(xPos - oPaddleStage.getX());
-                    opponentPong.setLayoutY(yPos - oPaddleStage.getY());
-                }
-
-                //check collisions
-                {
-                    if (yPos <= primaryStage.getY() + rad) moveY = abs(moveY); //top and bottom
-                    else if (yPos >= primaryStage.getY() + primaryStage.getScene().getHeight() - rad) moveY = -abs(moveY);
-
-                    if (xPos <= 0 || xPos >= screenBounds.getWidth()) { //if ball goes off-screen
-                        xPos = (screenBounds.getMaxX() - screenBounds.getMinX()) / 2;
-                        yPos = (screenBounds.getMaxY() - screenBounds.getMinY()) / 2;
+                if (host) {
+                    //update positions
+                    {
+                        xPos += (moveX * (time - last) / 10);
+                        yPos += (moveY * (time - last) / 10);
                     }
 
-                    //player paddle //TODO: find better way to get paddle position
-                    if ((xPos - rad < pPaddleStage.getX() + pPaddleStage.getScene().getWidth()) && (xPos + rad > pPaddleStage.getX() + 55) &&
-                            (yPos - rad < pPaddleStage.getY() + pPaddleStage.getScene().getHeight()) && (yPos + rad > pPaddleStage.getY())) {
-                        if (lastBallX >= lastPX + (pPaddle.getWidth() / 2)) xPos = pPaddleStage.getX() + pPaddle.getWidth() + rad;
-                        else xPos = pPaddleStage.getX() - rad;
-                        moveX = (xPos - lastBallX) / 5;
-                    } else if ((xPos - rad < oPaddleStage.getX() + oPaddleStage.getScene().getWidth() - 55) //opponent paddle
-                            && (xPos + rad > oPaddleStage.getX()) && (yPos - rad < oPaddleStage.getY() + oPaddleStage.getScene().getHeight())
-                            && (yPos + rad > oPaddleStage.getY())) {
-                        if (lastBallX >= lastOX + (pPaddle.getWidth() / 2)) xPos = oPaddleStage.getX() + oPaddle.getWidth() + rad;
-                        else xPos = oPaddleStage.getX() - rad;
-                        moveX = (xPos - lastBallX) / 5;
+                    //check collisions
+                    {
+                        if (yPos <= primaryStage.getY() + rad) moveY = abs(moveY); //top and bottom
+                        else if (yPos >= primaryStage.getY() + primaryStage.getScene().getHeight() - rad) moveY = -abs(moveY);
+
+                        if (xPos <= 0 || xPos >= screenBounds.getWidth()) { //if ball goes off-screen
+                            xPos = (screenBounds.getMaxX() - screenBounds.getMinX()) / 2;
+                            yPos = (screenBounds.getMaxY() - screenBounds.getMinY()) / 2;
+                        }
+
+                        //player paddle //TODO: find better way to get paddle position
+                        if ((xPos - rad < pPaddleStage.getX() + pPaddleStage.getScene().getWidth()) && (xPos + rad > pPaddleStage.getX() + 55) &&
+                                (yPos - rad < pPaddleStage.getY() + pPaddleStage.getScene().getHeight()) && (yPos + rad > pPaddleStage.getY())) {
+                            if (lastBallX >= lastPX + (pPaddle.getWidth() / 2)) xPos = pPaddleStage.getX() + pPaddle.getWidth() + rad;
+                            else xPos = pPaddleStage.getX() - rad;
+                            moveX = (xPos - lastBallX) / 5;
+                        } else if ((xPos - rad < oPaddleStage.getX() + oPaddleStage.getScene().getWidth() - 55) //opponent paddle
+                                && (xPos + rad > oPaddleStage.getX()) && (yPos - rad < oPaddleStage.getY() + oPaddleStage.getScene().getHeight())
+                                && (yPos + rad > oPaddleStage.getY())) {
+                            if (lastBallX >= lastOX + (pPaddle.getWidth() / 2)) xPos = oPaddleStage.getX() + oPaddle.getWidth() + rad;
+                            else xPos = oPaddleStage.getX() - rad;
+                            moveX = (xPos - lastBallX) / 5;
+                        }
                     }
+
+                    //update info
+                    {
+                        last = time;
+                        lastPX = pPaddleStage.getX();
+                        lastOX = oPaddleStage.getX();
+                        lastBallX = xPos;
+                    }
+
+                    //"AI" lol
+                    if (!srvr.getOpponent()) oPaddleStage.setY(yPos - 100);
+                    else {
+                        oPaddleStage.setX(oppX);
+                        oPaddleStage.setY(oppY);
+                    }
+                } else {
+                    client.send(oPaddleStage.getX(), oPaddleStage.getY());
+                    pPaddleStage.setX(pX);
+                    pPaddleStage.setY(pY);
                 }
 
-                //update info
-                last = time;
-                lastPX = pPaddleStage.getX();
-                lastOX = oPaddleStage.getX();
-                lastBallX = xPos;
+                ball.setLayoutX(xPos - primaryStage.getX());
+                ball.setLayoutY(yPos - primaryStage.getY());
 
-                //"AI" lol
-                oPaddleStage.setY(yPos - 100);
+                paddlePong.setLayoutX(xPos - pPaddleStage.getX());
+                paddlePong.setLayoutY(yPos - pPaddleStage.getY());
+
+                opponentPong.setLayoutX(xPos - oPaddleStage.getX());
+                opponentPong.setLayoutY(yPos - oPaddleStage.getY());
 
                 try {TimeUnit.MILLISECONDS.sleep(10);} catch (InterruptedException ignored) {}
             }
