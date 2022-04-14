@@ -2,12 +2,13 @@ import java.net.*;
 import java.io.*;
 import java.util.HashMap;
 
+//client network connection
 public class Client {
     private Socket skt = null;
     private PrintWriter out = null;
     private BufferedReader in = null;
     private final static HashMap<String, String> config = new HashMap<>();
-    private Game game;
+    private final Game game;
 
     public Client(Game game, String address, int port) {
         this.game = game;
@@ -19,6 +20,7 @@ public class Client {
         } catch (IOException ignored) {}
     }
 
+    //updates the client config for communicating with server
     private boolean update() {
         if (skt != null) {
             try {
@@ -31,8 +33,8 @@ public class Client {
         return false;
     }
 
+    //sends required information to server for one game loop cycle
     public void send(double x, double y) {
-        //do something...
         //send position of window, then get position of host window and ball
         if (update()) {
             String output = config.get("FormatOut");

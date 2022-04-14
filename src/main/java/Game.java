@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 import static java.lang.Math.abs;
 import java.util.Random;
 
+//represents the game itself (main is just the menus)
 public class Game {
     private final main main;
     private final boolean host;
@@ -23,13 +24,13 @@ public class Game {
     private volatile boolean run = true;
     private volatile double xPos, yPos, oppX, oppY, pX, pY;
 
+    //used to update game loop in multiplayer
     public void updateClient(double x1, double y1, double x2, double y2) {
         xPos = x1;
         yPos = y1;
         pX = x2;
         pY = y2;
     }
-
     public void updateHost(double x, double y) {
         oppX = x;
         oppY = y;
@@ -46,18 +47,17 @@ public class Game {
         stage.setY(event.getScreenY() - gapY);
     }
 
+    //client constructor
     public Game(main main, int port, String address) {
         this.main = main;
         host = false;
         client = new Client(this, address, port);
-        //connect to server
     }
-
+    //host constructor
     public Game(main main, int port) {
         this.main = main;
         host = true;
         new Thread(srvr = new Controller(port, this)).start();
-        //start server
     }
 
     public boolean getConnection() { return srvr != null || client != null; }
@@ -187,7 +187,6 @@ public class Game {
             double lastPX = pPaddleStage.getX(), lastOX = oPaddleStage.getX(), lastBallX = xPos;
 
             long aiTime = 0;
-            long aiStart = System.currentTimeMillis();
             boolean direction = true;
             Random rand = new Random();
 
@@ -234,7 +233,7 @@ public class Game {
                         lastBallX = xPos;
                     }
 
-                    //"AI" lol
+                    //"AI" for when no opponent is connected
                     if (!srvr.getOpponent()) {
                         oPaddleStage.setY(yPos - 100);
                         if (aiTime <= time) {
@@ -243,8 +242,7 @@ public class Game {
                         }
                         if (direction) oPaddleStage.setX(oPaddleStage.getX() + (((screenBounds.getWidth() * 0.3) - oPaddleStage.getX()) / (aiTime - time)));
                         else oPaddleStage.setX(oPaddleStage.getX() - ((oPaddleStage.getX() - screenBounds.getMinX()) / (aiTime - time)));
-                    }
-                    else {
+                    } else {
                         oPaddleStage.setX(oppX);
                         oPaddleStage.setY(oppY);
                     }
@@ -263,6 +261,7 @@ public class Game {
                 opponentPong.setLayoutX(xPos - oPaddleStage.getX());
                 opponentPong.setLayoutY(yPos - oPaddleStage.getY());
 
+                //sleeping for a few milliseconds keeps the game running more smoothly
                 try {TimeUnit.MILLISECONDS.sleep(10);} catch (InterruptedException ignored) {}
             }
         }).start();

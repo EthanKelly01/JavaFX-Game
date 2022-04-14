@@ -5,6 +5,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+//host network connection for multiplayer
 public class Controller implements Runnable {
     private ServerSocket srvr = null;
     private static Game game = null;
@@ -30,7 +31,7 @@ public class Controller implements Runnable {
     public void run() {
         if (srvr == null) return;
         while (run) try {
-            Player temp = new Player(srvr.accept(), this);
+            Player temp = new Player(srvr.accept(), this); //spawn a new thread for each client found
             if (opponent == null) opponent = temp;
             temp.start();
             threadpool.add(temp);
@@ -45,6 +46,7 @@ public class Controller implements Runnable {
         } catch (IOException ignored) {}
     }
 
+    //if a client disconnects, remove its thread from the threadpool
     private void removeThread(Player player) {
         threadpool.remove(player);
         if (player.equals(opponent)) {
@@ -64,6 +66,7 @@ public class Controller implements Runnable {
             srvr = server;
         }
 
+        //format config into a string
         private String getConfig() {
             char delim = config.get("Delimiter").charAt(0);
             String output = "" + delim;

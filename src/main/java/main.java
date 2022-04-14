@@ -35,16 +35,17 @@ public class main extends Application {
         VBox clientMenu = new VBox(5);
         VBox hostMenu = new VBox(5);
 
-        Rectangle2D screenBounds = Screen.getPrimary().getBounds(); //TODO: better positioning system
+        Rectangle2D screenBounds = Screen.getPrimary().getBounds();
 
         //String address = "localhost"; //default vars
-        String address = "192.168.2.30";
+        String address = "123.456.7.89";
         int port = 6666;
 
         //main menu
         {
             home.setStyle("-fx-background-color : #2e3034;");
 
+            //buttons to join or host game
             Button hostBtn = new Button("Host Game");
             Button joinBtn = new Button("Join Game");
             hostBtn.setPrefSize(200, 10);
@@ -69,7 +70,7 @@ public class main extends Application {
 
             TextField portField = new TextField(Integer.toString(port));
             portField.setMaxWidth(50);
-            UnaryOperator<TextFormatter.Change> modifyChange = c -> {
+            UnaryOperator<TextFormatter.Change> modifyChange = c -> { //ensures only numbers are entered
                 if (c.isContentChange() && (c.getControlNewText().length() > 5 || !Pattern.matches("^[0-9]*$", c.getControlNewText()))) {
                     c.setText(c.getControlText());
                     c.setRange(0, c.getControlText().length());
@@ -78,6 +79,7 @@ public class main extends Application {
             };
             portField.setTextFormatter(new TextFormatter<>(modifyChange));
 
+            //gridpanes are used to align elements on the y axis
             GridPane portRow = new GridPane();
             portRow.setAlignment(Pos.CENTER);
             portRow.setHgap(5);
@@ -171,9 +173,7 @@ public class main extends Application {
             primaryStage.show();
             //TODO: intro anim
 
-            primaryStage.setOnCloseRequest(event -> {
-                if (game != null) game.end();
-            });
+            primaryStage.setOnCloseRequest(event -> {if (game != null) game.end();});
         }
     }
 
