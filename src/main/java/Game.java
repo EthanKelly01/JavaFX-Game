@@ -13,6 +13,7 @@ import javafx.scene.shape.Rectangle;
 import javafx.stage.*;
 import java.util.concurrent.TimeUnit;
 import static java.lang.Math.abs;
+import java.util.Random;
 
 public class Game {
     private final main main;
@@ -185,6 +186,11 @@ public class Game {
             long last = System.currentTimeMillis();
             double lastPX = pPaddleStage.getX(), lastOX = oPaddleStage.getX(), lastBallX = xPos;
 
+            long aiTime = 0;
+            long aiStart = System.currentTimeMillis();
+            boolean direction = true;
+            Random rand = new Random();
+
             while (run) {
                 long time = System.currentTimeMillis();
 
@@ -229,7 +235,15 @@ public class Game {
                     }
 
                     //"AI" lol
-                    if (!srvr.getOpponent()) oPaddleStage.setY(yPos - 100);
+                    if (!srvr.getOpponent()) {
+                        oPaddleStage.setY(yPos - 100);
+                        if (aiTime <= time) {
+                            direction = !direction;
+                            aiTime = rand.nextLong(1000) + time + 500;
+                        }
+                        if (direction) oPaddleStage.setX(oPaddleStage.getX() + (((screenBounds.getWidth() * 0.3) - oPaddleStage.getX()) / (aiTime - time)));
+                        else oPaddleStage.setX(oPaddleStage.getX() - ((oPaddleStage.getX() - screenBounds.getMinX()) / (aiTime - time)));
+                    }
                     else {
                         oPaddleStage.setX(oppX);
                         oPaddleStage.setY(oppY);
